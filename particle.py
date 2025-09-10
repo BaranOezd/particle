@@ -5,6 +5,13 @@ import random
 # Initialize pygame
 pygame.init()
 
+# Debug toggle flags
+show_speed_colors = True
+show_grid_overlay = True
+
+CELL_SIZE = 40
+PARTICLE_NUM = 10
+
 # Frame size
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -13,7 +20,7 @@ clock = pygame.time.Clock()
 
 # Particle class
 def random_velocity():
-    return random.uniform(-2, 2), random.uniform(-2, 2)
+    return random.uniform(-4, 4), random.uniform(-4, 4)
 
 class Particle:
     def __init__(self):
@@ -39,9 +46,15 @@ class Particle:
         elif self.y > HEIGHT - self.radius:
             self.y = HEIGHT - self.radius
             self.vy = -self.vy
-    def draw(self, surface):
+    def draw(self, surface, color=None):
         pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
 
+def draw_grid(surface, cell=CELL_SIZE, color=(60, 60, 60)):
+    for x in range(0, WIDTH, cell):
+        pygame.draw.line(surface, color, (x, 0), (x, HEIGHT), 1)
+    for y in range(0, HEIGHT, cell):
+        pygame.draw.line(surface, color, (0, y), (WIDTH, y), 1)
+        
 def circles_collide(a, b):
     dx = b.x - a.x
     dy = b.y - a.y
@@ -121,7 +134,7 @@ def handle_collisions_grid(particles, cell_size=40):
                             checked.add((i, j))
 
 # Create 10 particles
-particles = [Particle() for _ in range(20)]
+particles = [Particle() for _ in range(PARTICLE_NUM)]
 
 
     
@@ -132,13 +145,27 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    screen.fill((30, 30, 30))  # Frame background
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_c:
+                show_speed_colors = not show_speed_colors
+            elif event.key == pygame.K_g:
+                show_grid_overlay = not show_grid_overlay
+
+    screen.fill((30, 30, 30))
+
+    # physics
     for p in particles:
         p.move()
-    handle_collisions_grid(particles, cell_size=40)
+
+    handle_collisions_grid(particles, cell_size=CELL_SIZE)
+
+    # overlays that should be under particles
+    if show_grid_overlay:
+        draw_grid(screen, cell=CELL_SIZE)
+
+    # draw particles and optional velocity vectors
     for p in particles:
         p.draw(screen)
+
     pygame.display.flip()
     clock.tick(60)
-
-pygame.quit()
