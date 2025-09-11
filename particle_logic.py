@@ -17,9 +17,9 @@ class Particle:
         self.radius = 10
         self.mass = 10.0
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
-    def move(self):
-        self.x += self.vx
-        self.y += self.vy
+    def move(self, substeps=1):
+        self.x += self.vx / substeps
+        self.y += self.vy / substeps
         if self.x < self.radius:
             self.x = self.radius
             self.vx = -self.vx
@@ -83,8 +83,11 @@ def apply_elastic_impulse(a, b, restitution=1.0):
     va_t = a.vx * tx + a.vy * ty
     vb_t = b.vx * tx + b.vy * ty
     m1, m2 = a.mass, b.mass
+    # Inelastic collision: restitution < 1
     va_n_new = (va_n * (m1 - m2) + 2 * m2 * vb_n) / (m1 + m2)
     vb_n_new = (vb_n * (m2 - m1) + 2 * m1 * va_n) / (m1 + m2)
+    va_n_new *= restitution
+    vb_n_new *= restitution
     a.vx = va_n_new * nx + va_t * tx
     a.vy = va_n_new * ny + va_t * ty
     b.vx = vb_n_new * nx + vb_t * tx
@@ -92,6 +95,7 @@ def apply_elastic_impulse(a, b, restitution=1.0):
 
 def handle_collisions_grid(particles, cell_size=40):
     grid = {}
+    collision_count = 0
     for idx, p in enumerate(particles):
         cell_x = int(p.x // cell_size)
         cell_y = int(p.y // cell_size)
@@ -114,5 +118,10 @@ def handle_collisions_grid(particles, cell_size=40):
                             a, b = particles[i], particles[j]
                             if circles_collide(a, b):
                                 resolve_overlap(a, b)
-                                apply_elastic_impulse(a, b, restitution=1.0)
-                            checked.add((i, j))
+                                apply_elastic_impulse(a, b)
+                                checked.add((i, j))
+                                collision_count += 1
+    return collision_count
+
+def get_total_kinetic_energy(particles):
+    return sum(0.5 * p.mass * (p.vx**2 + p.vy**2) for p in particles)
