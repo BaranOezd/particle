@@ -1,8 +1,8 @@
 import math
 import random
 
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 1200
+HEIGHT = 800
 CELL_SIZE = 40
 
 # Particle class
@@ -13,7 +13,7 @@ class Particle:
     def __init__(self):
         self.x = random.randint(50, WIDTH-50)
         self.y = random.randint(50, HEIGHT-50)
-        self.vx, self.vy = random_velocity()
+        self.vx, self.vy = (0.0,0.0)
         self.radius = 10
         self.mass = 10.0
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
@@ -93,7 +93,7 @@ def apply_elastic_impulse(a, b, restitution=1.0):
     b.vx = vb_n_new * nx + vb_t * tx
     b.vy = vb_n_new * ny + vb_t * ty
 
-def handle_collisions_grid(particles, cell_size=40):
+def handle_collisions_grid(particles, cell_size=40, restitution=1.0):
     grid = {}
     collision_count = 0
     for idx, p in enumerate(particles):
@@ -118,10 +118,20 @@ def handle_collisions_grid(particles, cell_size=40):
                             a, b = particles[i], particles[j]
                             if circles_collide(a, b):
                                 resolve_overlap(a, b)
-                                apply_elastic_impulse(a, b)
+                                apply_elastic_impulse(a, b, restitution)
                                 checked.add((i, j))
                                 collision_count += 1
     return collision_count
 
 def get_total_kinetic_energy(particles):
     return sum(0.5 * p.mass * (p.vx**2 + p.vy**2) for p in particles)
+
+def apply_gravity_toward(particles, target, strength=0.2):
+    for p in particles:
+        dx = target[0] - p.x
+        dy = target[1] - p.y
+        dist = math.hypot(dx, dy) + 1e-6
+        gx = strength * dx / dist
+        gy = strength * dy / dist
+        p.vx += gx
+        p.vy += gy
