@@ -1,7 +1,13 @@
 import pygame
-from particle_logic import Particle, handle_collisions_grid, draw_grid, WIDTH, HEIGHT, CELL_SIZE, get_total_kinetic_energy, apply_newtonian_gravity
+from particle_logic import (
+    Particle, handle_collisions_grid, draw_grid, WIDTH, HEIGHT, CELL_SIZE,
+    get_total_kinetic_energy, apply_newtonian_gravity_spatial, build_spatial_grid
+)
 
-PARTICLE_NUM = 40
+PARTICLE_NUM = 400          # try hundreds; tune as needed
+SUBSTEPS = 1               # fewer substeps improves throughput
+GRAVITY_RADIUS = 220.0     # only consider neighbors within this radius
+G = 0.02                   # tune gravitational constant (smaller for larger N)
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -13,7 +19,7 @@ particles = [Particle() for _ in range(PARTICLE_NUM)]
 show_grid_overlay = True
 target_fps = 60
 collision_count = 0
-restitution = 1.0  # 1.0 = perfectly elastic, <1.0 = inelastic
+restitution = 0.4  # 1.0 = perfectly elastic, <1.0 = inelastic
 gravity_targets = []  # List of gravity centers
 
 running = True
@@ -48,24 +54,27 @@ while running:
             elif event.button == 3:  # Right click
                 gravity_targets = []  # Clear all centers
     screen.fill((30, 30, 30))
-    for _ in range(4):
-        # Apply gravity centers
+    for _ in range(SUBSTEPS):
+        # build grid once per substep and reuse for gravity + collisions
+        grid = build_spatial_grid(particles, cell_size=CELL_SIZE)
+        # apply gravity only from nearby neighbors
+        if len(particles) > 1:
+            apply_newtonian_gravity_spatial(particles, grid, G=G, gravity_radius=GRAVITY_RADIUS, cell_size=CELL_SIZE)
+        # optional gravity centers (kept simple)
         for target in gravity_targets:
-            # Simple gravity toward center (same as before)
             for p in particles:
                 dx = target[0] - p.x
                 dy = target[1] - p.y
-                dist = (dx**2 + dy**2)**0.5 + 1e-6
-                strength = 0.015  
+                dist = (dx * dx + dy * dy) ** 0.5 + 1e-6
+                strength = 0.015
                 gx = strength * dx / dist
                 gy = strength * dy / dist
                 p.vx += gx
                 p.vy += gy
-        # Apply Newtonian gravity between particles
-        apply_newtonian_gravity(particles, G=0.03)
         for p in particles:
-            p.move(substeps=2)
-        collision_count += handle_collisions_grid(particles, cell_size=CELL_SIZE, restitution=restitution)
+            p.move(substeps=SUBSTEPS)
+        # reuse grid for collision detection to avoid rebuilding
+        collision_count += handle_collisions_grid(particles, cell_size=CELL_SIZE, restitution=restitution, grid=grid)
     if show_grid_overlay:
         draw_grid(screen, cell=CELL_SIZE)
     for p in particles:

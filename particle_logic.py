@@ -14,9 +14,9 @@ class Particle:
     def __init__(self):
         self.x = random.randint(50, WIDTH-50)
         self.y = random.randint(50, HEIGHT-50)
-        self.vx, self.vy = random_velocity()
-        self.radius = 10
-        self.mass = random.uniform(5.0, 15.0)  # Random mass between 5 and 15
+        self.vx, self.vy = (0.0,0.0)
+        self.radius = 3
+        self.mass = random.randint(5, 400)  # Random mass between 5 and 15
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
     def move(self, substeps=1):
         self.x += self.vx / substeps
@@ -92,16 +92,75 @@ def apply_elastic_impulse(a, b, restitution=1.0):
     b.vx = vb_n_new * nx + vb_t * tx
     b.vy = vb_n_new * ny + vb_t * ty
 
-def handle_collisions_grid(particles, cell_size=40, restitution=1.0):
+def build_spatial_grid(particles, cell_size=CELL_SIZE):
+    """Build a mapping from grid cell -> list of particle indices."""
     grid = {}
-    collision_count = 0
     for idx, p in enumerate(particles):
         cell_x = int(p.x // cell_size)
         cell_y = int(p.y // cell_size)
         key = (cell_x, cell_y)
-        if key not in grid:
-            grid[key] = []
-        grid[key].append(idx)
+        grid.setdefault(key, []).append(idx)
+    return grid
+
+def apply_newtonian_gravity_spatial(particles, grid, G=0.2, gravity_radius=200.0, cell_size=CELL_SIZE, softening=1e-2):
+    """
+    Apply Newtonian gravity using the provided spatial grid.
+    Each particle only considers neighbors within gravity_radius.
+    This reduces complexity for large N.
+    """
+    radius_cells = max(1, int(math.ceil(gravity_radius / cell_size)))
+    radius_sq = gravity_radius * gravity_radius
+    n = len(particles)
+    # accumulate accelerations first to avoid order dependencies
+    ax = [0.0] * n
+    ay = [0.0] * n
+    for key, indices in grid.items():
+        # iterate particles in this cell and nearby cells
+        cx, cy = key
+        neighbor_cells = []
+        for dx_cell in range(-radius_cells, radius_cells + 1):
+            for dy_cell in range(-radius_cells, radius_cells + 1):
+                neighbor_cells.append((cx + dx_cell, cy + dy_cell))
+        for i in indices:
+            a = particles[i]
+            for nkey in neighbor_cells:
+                if nkey not in grid:
+                    continue
+                for j in grid[nkey]:
+                    if i == j:
+                        continue
+                    b = particles[j]
+                    dx = b.x - a.x
+                    dy = b.y - a.y
+                    dist_sq = dx * dx + dy * dy + softening
+                    if dist_sq > radius_sq:
+                        continue
+                    inv_r = 1.0 / math.sqrt(dist_sq)
+                    inv_r3 = inv_r / dist_sq
+                    # acceleration on a due to b: G * m_b * r_vec / r^3
+                    factor = G * b.mass * inv_r3
+                    ax[i] += factor * dx
+                    ay[i] += factor * dy
+    # apply accelerations
+    for i, p in enumerate(particles):
+        p.vx += ax[i]
+        p.vy += ay[i]
+
+def handle_collisions_grid(particles, cell_size=40, restitution=1.0, grid=None):
+    """
+    Collision handling using spatial grid. If a grid is provided, reuse it
+    (avoids building it twice per substep).
+    """
+    if grid is None:
+        grid = {}
+        for idx, p in enumerate(particles):
+            cell_x = int(p.x // cell_size)
+            cell_y = int(p.y // cell_size)
+            key = (cell_x, cell_y)
+            if key not in grid:
+                grid[key] = []
+            grid[key].append(idx)
+    collision_count = 0
     checked = set()
     for key, indices in grid.items():
         neighbors = [key,
