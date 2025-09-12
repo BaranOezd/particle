@@ -4,7 +4,7 @@ from particle_logic import (
     get_total_kinetic_energy, apply_newtonian_gravity_spatial, build_spatial_grid
 )
 
-PARTICLE_NUM = 400          # try hundreds; tune as needed
+PARTICLE_NUM = 100         # try hundreds; tune as needed
 SUBSTEPS = 1               # fewer substeps improves throughput
 GRAVITY_RADIUS = 220.0     # only consider neighbors within this radius
 G = 0.02                   # tune gravitational constant (smaller for larger N)
