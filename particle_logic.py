@@ -1,5 +1,6 @@
 import math
 import random
+import pygame
 
 WIDTH = 1200
 HEIGHT = 800
@@ -7,15 +8,15 @@ CELL_SIZE = 40
 
 # Particle class
 def random_velocity():
-    return random.uniform(-4, 4), random.uniform(-4, 4)
+    return random.uniform(-2, 2), random.uniform(-2, 2)
 
 class Particle:
     def __init__(self):
         self.x = random.randint(50, WIDTH-50)
         self.y = random.randint(50, HEIGHT-50)
-        self.vx, self.vy = (0.0,0.0)
+        self.vx, self.vy = random_velocity()
         self.radius = 10
-        self.mass = 10.0
+        self.mass = random.uniform(5.0, 15.0)  # Random mass between 5 and 15
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
     def move(self, substeps=1):
         self.x += self.vx / substeps
@@ -33,11 +34,9 @@ class Particle:
             self.y = HEIGHT - self.radius
             self.vy = -self.vy
     def draw(self, surface):
-        import pygame
         pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
 
 def draw_grid(surface, cell=CELL_SIZE, color=(60, 60, 60)):
-    import pygame
     for x in range(0, WIDTH, cell):
         pygame.draw.line(surface, color, (x, 0), (x, HEIGHT), 1)
     for y in range(0, HEIGHT, cell):
@@ -126,12 +125,21 @@ def handle_collisions_grid(particles, cell_size=40, restitution=1.0):
 def get_total_kinetic_energy(particles):
     return sum(0.5 * p.mass * (p.vx**2 + p.vy**2) for p in particles)
 
-def apply_gravity_toward(particles, target, strength=0.2):
-    for p in particles:
-        dx = target[0] - p.x
-        dy = target[1] - p.y
-        dist = math.hypot(dx, dy) + 1e-6
-        gx = strength * dx / dist
-        gy = strength * dy / dist
-        p.vx += gx
-        p.vy += gy
+def apply_newtonian_gravity(particles, G=0.2):
+    # Each particle attracts every other particle
+    for i, a in enumerate(particles):
+        fx, fy = 0.0, 0.0
+        for j, b in enumerate(particles):
+            if i == j:
+                continue
+            dx = b.x - a.x
+            dy = b.y - a.y
+            dist_sq = dx*dx + dy*dy + 1e-6
+            dist = math.sqrt(dist_sq)
+            # Newtonian gravity: F = G * m1 * m2 / r^2
+            force = G * a.mass * b.mass / dist_sq
+            fx += force * dx / dist
+            fy += force * dy / dist
+        # Acceleration: a = F / m
+        a.vx += fx / a.mass
+        a.vy += fy / a.mass

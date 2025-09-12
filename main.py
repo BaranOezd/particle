@@ -1,11 +1,11 @@
 import pygame
-from particle_logic import Particle, handle_collisions_grid, draw_grid, WIDTH, HEIGHT, CELL_SIZE, get_total_kinetic_energy, apply_gravity_toward
+from particle_logic import Particle, handle_collisions_grid, draw_grid, WIDTH, HEIGHT, CELL_SIZE, get_total_kinetic_energy, apply_newtonian_gravity
 
-PARTICLE_NUM = 10
+PARTICLE_NUM = 40
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Particle Logic')
+pygame.display.set_caption('Particles')
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 24)
 
@@ -13,8 +13,8 @@ particles = [Particle() for _ in range(PARTICLE_NUM)]
 show_grid_overlay = True
 target_fps = 60
 collision_count = 0
-gravity_target = None
 restitution = 1.0  # 1.0 = perfectly elastic, <1.0 = inelastic
+gravity_targets = []  # List of gravity centers
 
 running = True
 while running:
@@ -40,23 +40,39 @@ while running:
                 restitution = max(0.0, min(1.0, restitution + 0.1))
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
-                gravity_target = event.pos
+                mods = pygame.key.get_mods()
+                if mods & pygame.KMOD_SHIFT:
+                    gravity_targets.append(event.pos)  # Add new center
+                else:
+                    gravity_targets = [event.pos]  # Set single center
             elif event.button == 3:  # Right click
-                gravity_target = None
+                gravity_targets = []  # Clear all centers
     screen.fill((30, 30, 30))
     for _ in range(4):
-        if gravity_target:
-            apply_gravity_toward(particles, gravity_target, strength=0.03)
+        # Apply gravity centers
+        for target in gravity_targets:
+            # Simple gravity toward center (same as before)
+            for p in particles:
+                dx = target[0] - p.x
+                dy = target[1] - p.y
+                dist = (dx**2 + dy**2)**0.5 + 1e-6
+                strength = 0.015  
+                gx = strength * dx / dist
+                gy = strength * dy / dist
+                p.vx += gx
+                p.vy += gy
+        # Apply Newtonian gravity between particles
+        apply_newtonian_gravity(particles, G=0.03)
         for p in particles:
-            p.move(substeps=4)
+            p.move(substeps=2)
         collision_count += handle_collisions_grid(particles, cell_size=CELL_SIZE, restitution=restitution)
     if show_grid_overlay:
         draw_grid(screen, cell=CELL_SIZE)
     for p in particles:
         p.draw(screen)
-    # Draw gravity target
-    if gravity_target:
-        pygame.draw.circle(screen, (255, 220, 80), gravity_target, 8)
+    # Draw gravity targets
+    for target in gravity_targets:
+        pygame.draw.circle(screen, (255, 220, 80), target, 8)
     # HUD overlay
     fps = clock.get_fps()
     ke = get_total_kinetic_energy(particles)
@@ -64,7 +80,8 @@ while running:
         f"FPS: {fps:.1f} (Target: {target_fps})",
         f"Kinetic Energy: {ke:.2f}",
         f"Collisions: {collision_count}",
-        f"Restitution: {restitution:.2f} (R/T to change)"
+        f"Restitution: {restitution:.2f} (R/T to change)",
+        f"Gravity Centers: {len(gravity_targets)} (Shift+LClick to add)"
     ]
     for i, line in enumerate(hud_lines):
         hud_text = font.render(line, True, (200, 200, 50))
