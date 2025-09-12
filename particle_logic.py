@@ -14,8 +14,8 @@ class Particle:
     def __init__(self):
         self.x = random.randint(50, WIDTH-50)
         self.y = random.randint(50, HEIGHT-50)
-        self.vx, self.vy = (0.0,0.0) # use random_velocity() for moving particles 
-        self.radius = 3
+        self.vx, self.vy = random_velocity()
+        self.radius = 10
         self.mass = random.uniform(5, 20)  # Random mass between 5 and 20
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
     def move(self, substeps=1):

@@ -4,7 +4,7 @@ from particle_logic import (
     get_total_kinetic_energy, apply_newtonian_gravity_spatial, build_spatial_grid
 )
 
-PARTICLE_NUM = 100         # try hundreds; tune as needed
+PARTICLE_NUM = 50         # try hundreds; tune as needed
 SUBSTEPS = 1               # fewer substeps improves throughput
 GRAVITY_RADIUS = 220.0     # only consider neighbors within this radius
 G = 0.02                   # tune gravitational constant (smaller for larger N)
@@ -19,7 +19,7 @@ particles = [Particle() for _ in range(PARTICLE_NUM)]
 show_grid_overlay = True
 target_fps = 60
 collision_count = 0
-restitution = 0.4  # 1.0 = perfectly elastic, <1.0 = inelastic
+restitution = 1.0  # 1.0 = perfectly elastic, <1.0 = inelastic
 gravity_targets = []  # List of gravity centers
 
 running = True
